@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>U Capture</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Save to U</h1>
+
+      <label>
+        User ID
+        <input id="userId" placeholder="user id" />
+      </label>
+
+      <label>
+        Source Type
+        <select id="sourceType">
+          <option value="article">article</option>
+          <option value="reddit">reddit</option>
+          <option value="x">x</option>
+          <option value="youtube">youtube</option>
+          <option value="note">note</option>
+        </select>
+      </label>
+
+      <button id="saveTabButton">Save Current Tab</button>
+
+      <hr />
+
+      <label>
+        Note title
+        <input id="noteTitle" placeholder="Quick note" />
+      </label>
+      <label>
+        Note content
+        <textarea id="noteContent" rows="5" placeholder="Write something..."></textarea>
+      </label>
+
+      <button id="saveNoteButton">Save Note</button>
+
+      <hr />
+
+      <label>
+        Job ID
+        <input id="jobId" placeholder="job id" />
+      </label>
+      <button id="checkJobButton">Check Job</button>
+
+      <pre id="status"></pre>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

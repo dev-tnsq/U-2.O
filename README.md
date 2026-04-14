@@ -87,9 +87,9 @@ Completed:
 - MCP Streamable HTTP context tools
 - MCP session-user binding and audit logs
 - Idempotent ingestion submit endpoints
+- Browser extension capture client (MV3 starter)
 
 Remaining:
-- Browser extension capture client (MV3)
 - Mobile capture client (basic flow)
 - OAuth-based auth (replace shared admin key for production)
 - Connection extraction pipeline (auto graph linking)
@@ -97,3 +97,19 @@ Remaining:
 - MCP rate limiting and quota enforcement
 - End-to-end tests (collector -> worker -> MCP context)
 - Deployment stack (managed Postgres, secrets, monitoring, alerting)
+
+## Extension (MV3 starter)
+
+Path: `apps/extension`
+
+What it does now:
+- Save current tab URL to collector
+- Save quick note to collector
+- Poll job status by job ID
+- Configure collector URL, admin key, device key, and default user ID
+
+How to run:
+1. Open `chrome://extensions`
+2. Enable Developer Mode
+3. Load unpacked extension from `apps/extension`
+4. Configure settings in extension options

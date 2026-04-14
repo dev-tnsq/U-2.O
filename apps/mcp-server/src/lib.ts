@@ -22,7 +22,7 @@ export async function semanticSearch(userId: string, query: string, limit: numbe
   const embedding = await createEmbedding(query);
   const literal = vectorSqlLiteral(embedding);
 
-  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; title: string; summary: string; tags: string[]; sourceType: string; score: number }>>(
+  const rows = (await prisma.$queryRawUnsafe(
     `SELECT id, title, summary, tags, "sourceType", 1 - (embeddings <=> $1::vector) AS score
      FROM "Card"
      WHERE "userId" = $2
@@ -31,7 +31,7 @@ export async function semanticSearch(userId: string, query: string, limit: numbe
     literal,
     userId,
     limit
-  );
+  )) as Array<{ id: string; title: string; summary: string; tags: string[]; sourceType: string; score: number }>;
 
   return rows;
 }
@@ -75,7 +75,7 @@ export async function graphNeighbors(cardId: string, depth: number = 1) {
 
 export async function contextBundle(userId: string, query: string, maxCards: number = 8, maxHops: number = 2) {
   const cards = await semanticSearch(userId, query, maxCards);
-  const edgeSets = await Promise.all(cards.map((card) => graphNeighbors(card.id, maxHops)));
+  const edgeSets = await Promise.all(cards.map((card: { id: string }) => graphNeighbors(card.id, maxHops)));
 
   return {
     query,

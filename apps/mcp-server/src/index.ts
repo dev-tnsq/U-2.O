@@ -223,7 +223,7 @@ async function main() {
   const transports: Record<string, StreamableHTTPServerTransport> = {};
   const sessionContexts: Record<string, SessionContext> = {};
 
-  app.post("/mcp", async (req, res) => {
+  app.post("/mcp", async (req: express.Request, res: express.Response) => {
     const auth = await authenticateMcpRequest(req, res);
     if (!auth) {
       return;
@@ -306,7 +306,7 @@ async function main() {
     }
   });
 
-  app.get("/mcp", async (req, res) => {
+  app.get("/mcp", async (req: express.Request, res: express.Response) => {
     const auth = await authenticateMcpRequest(req, res);
     if (!auth) {
       return;
@@ -327,7 +327,7 @@ async function main() {
     await transports[sessionId].handleRequest(req, res);
   });
 
-  app.delete("/mcp", async (req, res) => {
+  app.delete("/mcp", async (req: express.Request, res: express.Response) => {
     const auth = await authenticateMcpRequest(req, res);
     if (!auth) {
       return;
@@ -348,7 +348,7 @@ async function main() {
     await transports[sessionId].handleRequest(req, res);
   });
 
-  app.get("/health", (_req, res) => {
+  app.get("/health", (_req: express.Request, res: express.Response) => {
     res.json({ ok: true, service: "mcp-server" });
   });
 

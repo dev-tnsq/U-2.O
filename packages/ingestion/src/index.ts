@@ -3,7 +3,6 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { getEnv } from "@u/core";
 import { prisma } from "@u/db";
-import { IngestionJobStatus, IngestionJobType } from "@prisma/client";
 
 const env = getEnv();
 const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
@@ -150,7 +149,7 @@ export async function enqueueUrlIngestion(input: z.infer<typeof enqueueUrlSchema
   const job = await prisma.ingestionJob.create({
     data: {
       userId: valid.userId,
-      type: IngestionJobType.URL,
+      type: "URL",
       payload: {
         url: valid.url,
         sourceType: valid.sourceType
@@ -166,7 +165,7 @@ export async function enqueueNoteIngestion(input: z.infer<typeof enqueueNoteSche
   const job = await prisma.ingestionJob.create({
     data: {
       userId: valid.userId,
-      type: IngestionJobType.NOTE,
+      type: "NOTE",
       payload: {
         title: valid.title,
         content: valid.content
@@ -178,9 +177,9 @@ export async function enqueueNoteIngestion(input: z.infer<typeof enqueueNoteSche
 }
 
 export async function claimPendingJob() {
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx: any) => {
     const candidate = await tx.ingestionJob.findFirst({
-      where: { status: IngestionJobStatus.PENDING },
+      where: { status: "PENDING" },
       orderBy: { createdAt: "asc" }
     });
 
@@ -189,9 +188,9 @@ export async function claimPendingJob() {
     }
 
     const updated = await tx.ingestionJob.updateMany({
-      where: { id: candidate.id, status: IngestionJobStatus.PENDING },
+      where: { id: candidate.id, status: "PENDING" },
       data: {
-        status: IngestionJobStatus.PROCESSING,
+        status: "PROCESSING",
         startedAt: new Date(),
         attempts: { increment: 1 }
       }
@@ -209,7 +208,7 @@ export async function completeJob(jobId: string, cardId: string) {
   await prisma.ingestionJob.update({
     where: { id: jobId },
     data: {
-      status: IngestionJobStatus.COMPLETED,
+      status: "COMPLETED",
       resultCardId: cardId,
       finishedAt: new Date(),
       errorMessage: null
@@ -221,7 +220,7 @@ export async function failJob(jobId: string, errorMessage: string, attempts: num
   await prisma.ingestionJob.update({
     where: { id: jobId },
     data: {
-      status: attempts >= maxAttempts ? IngestionJobStatus.FAILED : IngestionJobStatus.PENDING,
+      status: attempts >= maxAttempts ? "FAILED" : "PENDING",
       errorMessage,
       finishedAt: attempts >= maxAttempts ? new Date() : null
     }
@@ -234,7 +233,7 @@ export async function processJobById(jobId: string) {
     throw new Error("job not found");
   }
 
-  if (job.type === IngestionJobType.URL) {
+  if (job.type === "URL") {
     const payload = urlPayloadSchema.parse(job.payload);
     return ingestUrlForUser(job.userId, payload.url, payload.sourceType);
   }

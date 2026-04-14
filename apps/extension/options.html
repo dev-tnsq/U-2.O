@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>U Capture Settings</title>
+    <style>
+      body { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 24px; color: #10203b; }
+      form { max-width: 760px; display: grid; gap: 12px; }
+      label { display: grid; gap: 6px; font-weight: 600; }
+      input { padding: 10px; border: 1px solid #b8c7e6; border-radius: 8px; }
+      button { width: fit-content; padding: 10px 14px; border: 0; border-radius: 8px; background: #1456d6; color: #fff; font-weight: 700; }
+      pre { white-space: pre-wrap; background: #f6f9ff; border: 1px solid #d8e2f7; padding: 10px; border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>U Capture Settings</h1>
+    <form id="settingsForm">
+      <label>
+        Collector base URL
+        <input id="collectorBaseUrl" placeholder="http://localhost:4040" />
+      </label>
+      <label>
+        Admin API key (optional if using device key)
+        <input id="adminApiKey" />
+      </label>
+      <label>
+        Device key (recommended)
+        <input id="deviceKey" />
+      </label>
+      <label>
+        Default user ID
+        <input id="defaultUserId" />
+      </label>
+      <button type="submit">Save settings</button>
+    </form>
+    <pre id="status"></pre>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>
