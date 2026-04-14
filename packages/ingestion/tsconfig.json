@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "../../",
+    "baseUrl": ".",
+    "paths": {
+      "@u/core": ["../core/src/index.ts"],
+      "@u/db": ["../db/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "../core/src/**/*.ts", "../db/src/**/*.ts"]
+}

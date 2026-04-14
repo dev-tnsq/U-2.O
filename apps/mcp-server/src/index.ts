@@ -1,5 +1,9 @@
+import { randomUUID } from "node:crypto";
+import express from "express";
+import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -7,8 +11,8 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { getEnv } from "@u/core";
-import { ensureVectorExtension, ensureVectorIndex, prisma } from "@u/db";
-import { contextBundle, createManualNote, graphNeighbors, semanticSearch, upsertCardFromUrl } from "./lib.js";
+import { ensureVectorExtension, ensureVectorIndex } from "@u/db";
+import { contextBundle, graphNeighbors, semanticSearch } from "./lib.js";
 
 const env = getEnv();
 
@@ -23,18 +27,6 @@ const server = new Server(
     }
   }
 );
-
-const ingestSchema = z.object({
-  userId: z.string().default(env.U_DEFAULT_USER_ID),
-  url: z.string().url(),
-  sourceType: z.string().default("article")
-});
-
-const noteSchema = z.object({
-  userId: z.string().default(env.U_DEFAULT_USER_ID),
-  title: z.string().min(3),
-  content: z.string().min(20)
-});
 
 const searchSchema = z.object({
   userId: z.string().default(env.U_DEFAULT_USER_ID),
@@ -54,55 +46,12 @@ const contextSchema = z.object({
   maxHops: z.number().int().min(1).max(3).default(2)
 });
 
-const createUserSchema = z.object({
-  email: z.string().email(),
-  name: z.string().optional()
-});
-
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
-        name: "u_create_user",
-        description: "Create or fetch a U user identity.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            email: { type: "string", format: "email" },
-            name: { type: "string" }
-          },
-          required: ["email"]
-        }
-      },
-      {
-        name: "u_ingest_url",
-        description: "Ingest a URL, summarize it, embed it, and store as a card.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            userId: { type: "string" },
-            url: { type: "string", format: "uri" },
-            sourceType: { type: "string" }
-          },
-          required: ["url"]
-        }
-      },
-      {
-        name: "u_create_note",
-        description: "Create a note card from raw text and add it to the U knowledge graph.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            userId: { type: "string" },
-            title: { type: "string" },
-            content: { type: "string" }
-          },
-          required: ["title", "content"]
-        }
-      },
-      {
         name: "u_search_cards",
-        description: "Semantic search across U cards for a user.",
+        description: "Semantic search over a user's memory cards in U.",
         inputSchema: {
           type: "object",
           properties: {
@@ -115,7 +64,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "u_graph_neighbors",
-        description: "Return graph edges around a card with configurable depth.",
+        description: "Fetch graph edges around a card with configurable hop depth.",
         inputSchema: {
           type: "object",
           properties: {
@@ -127,7 +76,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "u_get_context_bundle",
-        description: "Get semantically relevant cards and graph edges for a query.",
+        description: "Get semantically relevant cards plus graph context for a query.",
         inputSchema: {
           type: "object",
           properties: {
@@ -146,36 +95,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest) => {
   const tool = request.params.name;
   const args = request.params.arguments ?? {};
-
-  if (tool === "u_create_user") {
-    const input = createUserSchema.parse(args);
-    const user = await prisma.user.upsert({
-      where: { email: input.email },
-      create: {
-        email: input.email,
-        name: input.name
-      },
-      update: {
-        name: input.name ?? undefined
-      }
-    });
-
-    return {
-      content: [{ type: "text", text: JSON.stringify({ userId: user.id, email: user.email, name: user.name }, null, 2) }]
-    };
-  }
-
-  if (tool === "u_ingest_url") {
-    const input = ingestSchema.parse(args);
-    const result = await upsertCardFromUrl(input.userId, input.url, input.sourceType);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-  }
-
-  if (tool === "u_create_note") {
-    const input = noteSchema.parse(args);
-    const result = await createManualNote(input.userId, input.title, input.content);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-  }
 
   if (tool === "u_search_cards") {
     const input = searchSchema.parse(args);
@@ -201,8 +120,80 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
 async function main() {
   await ensureVectorExtension();
   await ensureVectorIndex();
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+
+  const app = createMcpExpressApp();
+  app.use(express.json({ limit: "2mb" }));
+
+  const transports: Record<string, StreamableHTTPServerTransport> = {};
+
+  app.post("/mcp", async (req, res) => {
+    const sessionId = req.header("mcp-session-id");
+
+    try {
+      let transport: StreamableHTTPServerTransport;
+
+      if (sessionId && transports[sessionId]) {
+        transport = transports[sessionId];
+      } else if (!sessionId && isInitializeRequest(req.body)) {
+        transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => randomUUID(),
+          onsessioninitialized: (id) => {
+            transports[id] = transport;
+          }
+        });
+
+        transport.onclose = () => {
+          if (transport.sessionId) {
+            delete transports[transport.sessionId];
+          }
+        };
+
+        await server.connect(transport);
+      } else {
+        res.status(400).json({
+          jsonrpc: "2.0",
+          error: { code: -32000, message: "Bad Request: No valid session ID provided" },
+          id: null
+        });
+        return;
+      }
+
+      await transport.handleRequest(req, res, req.body);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "internal error";
+      if (!res.headersSent) {
+        res.status(500).json({ jsonrpc: "2.0", error: { code: -32603, message }, id: null });
+      }
+    }
+  });
+
+  app.get("/mcp", async (req, res) => {
+    const sessionId = req.header("mcp-session-id");
+    if (!sessionId || !transports[sessionId]) {
+      res.status(400).send("Invalid or missing session ID");
+      return;
+    }
+
+    await transports[sessionId].handleRequest(req, res);
+  });
+
+  app.delete("/mcp", async (req, res) => {
+    const sessionId = req.header("mcp-session-id");
+    if (!sessionId || !transports[sessionId]) {
+      res.status(400).send("Invalid or missing session ID");
+      return;
+    }
+
+    await transports[sessionId].handleRequest(req, res);
+  });
+
+  app.get("/health", (_req, res) => {
+    res.json({ ok: true, service: "mcp-server" });
+  });
+
+  app.listen(env.U_MCP_PORT, () => {
+    console.log(`U MCP server listening on ${env.U_MCP_PORT}`);
+  });
 }
 
 main().catch((err) => {

@@ -1,5 +1,5 @@
 {
-  "name": "@u/mcp-server",
+  "name": "@u/collector-api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,14 +9,13 @@
     "dev": "tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "echo 'No lint configured for @u/mcp-server'"
+    "lint": "echo 'No lint configured for @u/collector-api'"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.13.0",
     "@u/core": "workspace:*",
     "@u/db": "workspace:*",
+    "@u/ingestion": "workspace:*",
     "express": "^4.21.1",
-    "openai": "^4.68.4",
     "zod": "^3.23.8"
   },
   "devDependencies": {

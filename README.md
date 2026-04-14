@@ -1,40 +1,66 @@
-# U (MCP-first)
+# U (Open Memory Infrastructure)
 
-U is a second-brain platform built MCP-first so agents can ingest, search, and reason over your full context.
+U is a user-owned memory system for agents.
 
-## What exists now
-- Real Postgres data model via Prisma
-- MCP stdio server with tools:
-  - `u_create_user`
-  - `u_ingest_url`
-  - `u_create_note`
-  - `u_search_cards`
-  - `u_graph_neighbors`
-  - `u_get_context_bundle`
-- OpenAI-backed summarization + embeddings
-- Vector storage in pgvector
+Core idea:
+- Data collection happens from user devices (extension/mobile/web) via a Collector API.
+- AI access happens through an open MCP server, so users can connect any AI client.
+- U is not a closed chat app. It is a context layer that any AI can use.
+
+## Services
+
+1. `@u/collector-api`
+- Receives user-captured data from device surfaces.
+- Runs ingestion pipeline (fetch/parse/summarize/embed/store).
+- Writes into Postgres + pgvector.
+
+2. `@u/mcp-server`
+- Exposes read/context tools over MCP Streamable HTTP.
+- Returns semantic + graph context to any compatible AI client.
+- Does not own primary ingestion.
+
+## Current APIs and tools
+
+Collector API endpoints:
+- `POST /v1/users`
+- `POST /v1/collect/url`
+- `POST /v1/collect/note`
+
+MCP tools:
+- `u_search_cards`
+- `u_graph_neighbors`
+- `u_get_context_bundle`
 
 ## Quick start
+
 1. Start Postgres:
    - `docker compose up -d`
 2. Install dependencies:
    - `pnpm install`
 3. Set environment:
    - `cp .env.example .env`
-   - Fill `OPENAI_API_KEY`
+   - Fill `OPENAI_API_KEY` and `U_COLLECTOR_API_KEY`
 4. Prepare database:
    - `pnpm db:generate`
    - `pnpm db:push`
    - `pnpm db:seed`
-5. Run MCP server:
+5. Start both services:
    - `pnpm dev`
 
-## MCP usage
-Configure your MCP client to launch:
-- command: `pnpm`
-- args: `["--filter", "@u/mcp-server", "dev"]`
-- cwd: repository root
+## Device capture flow
+
+1. Extension/mobile app captures user data.
+2. Client sends payload to Collector API with `x-u-api-key`.
+3. Collector pipeline stores cards + embeddings.
+4. Any AI client connects to U MCP and requests context.
+
+## MCP endpoint
+
+- MCP Streamable HTTP route: `/mcp`
+- Health: `/health`
 
 ## Notes
-- This is intentionally MCP-first, no web UI required.
-- All reads/writes go through real Postgres and real model APIs.
+
+- No placeholder storage or mocked retrieval path.
+- Data is portable and open via MCP contract.
+- Architecture is designed for multi-client AI interoperability.

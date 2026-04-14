@@ -5,7 +5,10 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1),
   OPENAI_EMBEDDING_MODEL: z.string().min(1).default("text-embedding-3-large"),
   OPENAI_SUMMARY_MODEL: z.string().min(1).default("gpt-4.1-mini"),
-  U_DEFAULT_USER_ID: z.string().min(1).default("local-user")
+  U_DEFAULT_USER_ID: z.string().min(1).default("local-user"),
+  U_COLLECTOR_API_KEY: z.string().min(16),
+  U_COLLECTOR_PORT: z.coerce.number().int().min(1).max(65535).default(4040),
+  U_MCP_PORT: z.coerce.number().int().min(1).max(65535).default(3000)
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

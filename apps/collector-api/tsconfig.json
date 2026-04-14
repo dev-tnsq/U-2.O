@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "../../",
+    "baseUrl": ".",
+    "paths": {
+      "@u/core": ["../../packages/core/src/index.ts"],
+      "@u/db": ["../../packages/db/src/index.ts"],
+      "@u/ingestion": ["../../packages/ingestion/src/index.ts"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "../../packages/core/src/**/*.ts",
+    "../../packages/db/src/**/*.ts",
+    "../../packages/ingestion/src/**/*.ts"
+  ]
+}
