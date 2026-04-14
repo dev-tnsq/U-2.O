@@ -9,9 +9,18 @@ const app = express();
 
 app.use(express.json({ limit: "2mb" }));
 
+type AuthContext = {
+  authUserId?: string;
+};
+
+function getAuthContext(res: Response): AuthContext {
+  return (res.locals.authContext as AuthContext | undefined) ?? {};
+}
+
 async function requireCollectorKey(req: Request, res: Response, next: NextFunction) {
   const provided = req.header("x-u-api-key");
   if (provided && provided === env.U_COLLECTOR_API_KEY) {
+    res.locals.authContext = {};
     next();
     return;
   }
@@ -34,7 +43,92 @@ async function requireCollectorKey(req: Request, res: Response, next: NextFuncti
     data: { lastUsedAt: new Date() }
   });
 
+  res.locals.authContext = { authUserId: key.userId };
+
   next();
+}
+
+function requireSameUserScope(userId: string, res: Response): boolean {
+  const { authUserId } = getAuthContext(res);
+  if (!authUserId) {
+    return true;
+  }
+
+  return authUserId === userId;
+}
+
+async function runWithIdempotency(
+  userId: string,
+  endpoint: string,
+  idempotencyKey: string,
+  action: () => Promise<{ statusCode: number; body: Record<string, unknown> }>
+) {
+  const existing = await prisma.idempotencyRecord.findUnique({
+    where: {
+      userId_endpoint_idempotencyKey: {
+        userId,
+        endpoint,
+        idempotencyKey
+      }
+    }
+  });
+
+  if (existing) {
+    return {
+      statusCode: existing.responseCode,
+      body: existing.responseBody as Record<string, unknown>,
+      replay: true
+    };
+  }
+
+  const result = await action();
+
+  try {
+    await prisma.idempotencyRecord.create({
+      data: {
+        userId,
+        endpoint,
+        idempotencyKey,
+        responseCode: result.statusCode,
+        responseBody: result.body as any
+      }
+    });
+  } catch {
+    const raced = await prisma.idempotencyRecord.findUnique({
+      where: {
+        userId_endpoint_idempotencyKey: {
+          userId,
+          endpoint,
+          idempotencyKey
+        }
+      }
+    });
+
+    if (raced) {
+      return {
+        statusCode: raced.responseCode,
+        body: raced.responseBody as Record<string, unknown>,
+        replay: true
+      };
+    }
+  }
+
+  return { ...result, replay: false };
+}
+
+function readIdempotencyKey(req: Request, res: Response): string | null {
+  const idempotencyKey = req.header("x-idempotency-key")?.trim();
+
+  if (!idempotencyKey && env.U_REQUIRE_IDEMPOTENCY_KEY) {
+    res.status(400).json({ error: "missing_idempotency_key" });
+    return null;
+  }
+
+  if (!idempotencyKey) {
+    return "no-idempotency-key";
+  }
+
+  return idempotencyKey;
 }
 
 const createUserSchema = z.object({
@@ -107,22 +201,58 @@ app.post("/v1/device-keys", requireCollectorKey, async (req, res) => {
 
 app.post("/v1/collect/url", requireCollectorKey, async (req, res) => {
   const input = ingestUrlSchema.parse(req.body);
-  const job = await enqueueUrlIngestion(input);
-  res.status(202).json({
-    jobId: job.id,
-    status: job.status,
-    acceptedAt: job.createdAt
+
+  if (!requireSameUserScope(input.userId, res)) {
+    res.status(403).json({ error: "forbidden_user_scope" });
+    return;
+  }
+
+  const idempotencyKey = readIdempotencyKey(req, res);
+  if (!idempotencyKey) {
+    return;
+  }
+
+  const response = await runWithIdempotency(input.userId, "collect-url", idempotencyKey, async () => {
+    const job = await enqueueUrlIngestion(input);
+    return {
+      statusCode: 202,
+      body: {
+        jobId: job.id,
+        status: job.status,
+        acceptedAt: job.createdAt
+      }
+    };
   });
+
+  res.status(response.statusCode).json({ ...response.body, replay: response.replay });
 });
 
 app.post("/v1/collect/note", requireCollectorKey, async (req, res) => {
   const input = ingestNoteSchema.parse(req.body);
-  const job = await enqueueNoteIngestion(input);
-  res.status(202).json({
-    jobId: job.id,
-    status: job.status,
-    acceptedAt: job.createdAt
+
+  if (!requireSameUserScope(input.userId, res)) {
+    res.status(403).json({ error: "forbidden_user_scope" });
+    return;
+  }
+
+  const idempotencyKey = readIdempotencyKey(req, res);
+  if (!idempotencyKey) {
+    return;
+  }
+
+  const response = await runWithIdempotency(input.userId, "collect-note", idempotencyKey, async () => {
+    const job = await enqueueNoteIngestion(input);
+    return {
+      statusCode: 202,
+      body: {
+        jobId: job.id,
+        status: job.status,
+        acceptedAt: job.createdAt
+      }
+    };
   });
+
+  res.status(response.statusCode).json({ ...response.body, replay: response.replay });
 });
 
 app.get("/v1/jobs/:jobId", requireCollectorKey, async (req, res) => {
@@ -131,6 +261,11 @@ app.get("/v1/jobs/:jobId", requireCollectorKey, async (req, res) => {
 
   if (!job) {
     res.status(404).json({ error: "not_found" });
+    return;
+  }
+
+  if (!requireSameUserScope(job.userId, res)) {
+    res.status(403).json({ error: "forbidden_user_scope" });
     return;
   }
 

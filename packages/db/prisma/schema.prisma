@@ -15,6 +15,8 @@ model User {
   notes        Note[]
   ingestionJobs IngestionJob[]
   apiKeys      ApiKey[]
+  idempotencyRecords IdempotencyRecord[]
+  mcpAuditLogs  McpAuditLog[]
   graphPresets Json?
   createdAt    DateTime  @default(now())
 }
@@ -108,4 +110,35 @@ model ApiKey {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isActive])
+}
+
+model IdempotencyRecord {
+  id             String   @id @default(cuid())
+  userId         String
+  endpoint       String
+  idempotencyKey String
+  responseCode   Int
+  responseBody   Json
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint, idempotencyKey])
+  @@index([userId, createdAt])
+}
+
+model McpAuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  sessionId   String?
+  toolName    String
+  success     Boolean
+  errorMessage String?
+  durationMs  Int?
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([toolName, createdAt])
 }

@@ -77,3 +77,23 @@ MCP tools:
 - No placeholder storage or mocked retrieval path.
 - Data is portable and open via MCP contract.
 - Architecture is designed for multi-client AI interoperability.
+
+## Overall Product Tracker
+
+Completed:
+- Collector API with async ingestion jobs
+- Ingestion worker with retry policy
+- Per-device key auth for collector and MCP
+- MCP Streamable HTTP context tools
+- MCP session-user binding and audit logs
+- Idempotent ingestion submit endpoints
+
+Remaining:
+- Browser extension capture client (MV3)
+- Mobile capture client (basic flow)
+- OAuth-based auth (replace shared admin key for production)
+- Connection extraction pipeline (auto graph linking)
+- Background re-embedding and stale-content refresh jobs
+- MCP rate limiting and quota enforcement
+- End-to-end tests (collector -> worker -> MCP context)
+- Deployment stack (managed Postgres, secrets, monitoring, alerting)
