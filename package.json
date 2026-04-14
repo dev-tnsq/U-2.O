@@ -10,8 +10,9 @@
   ],
   "scripts": {
     "build": "pnpm -r build",
-    "dev": "pnpm --parallel --filter @u/collector-api --filter @u/mcp-server dev",
+    "dev": "pnpm --parallel --filter @u/collector-api --filter @u/ingestion-worker --filter @u/mcp-server dev",
     "dev:collector": "pnpm --filter @u/collector-api dev",
+    "dev:worker": "pnpm --filter @u/ingestion-worker dev",
     "dev:mcp": "pnpm --filter @u/mcp-server dev",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",

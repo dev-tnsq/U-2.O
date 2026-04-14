@@ -2,7 +2,7 @@ import express, { type Request, type Response, type NextFunction } from "express
 import { z } from "zod";
 import { getEnv } from "@u/core";
 import { ensureVectorExtension, ensureVectorIndex, prisma } from "@u/db";
-import { ingestNoteForUser, ingestUrlForUser } from "@u/ingestion";
+import { enqueueNoteIngestion, enqueueUrlIngestion, getIngestionJobById } from "@u/ingestion";
 
 const env = getEnv();
 const app = express();
@@ -58,14 +58,34 @@ app.post("/v1/users", requireCollectorKey, async (req, res) => {
 
 app.post("/v1/collect/url", requireCollectorKey, async (req, res) => {
   const input = ingestUrlSchema.parse(req.body);
-  const result = await ingestUrlForUser(input.userId, input.url, input.sourceType);
-  res.json(result);
+  const job = await enqueueUrlIngestion(input);
+  res.status(202).json({
+    jobId: job.id,
+    status: job.status,
+    acceptedAt: job.createdAt
+  });
 });
 
 app.post("/v1/collect/note", requireCollectorKey, async (req, res) => {
   const input = ingestNoteSchema.parse(req.body);
-  const result = await ingestNoteForUser(input.userId, input.title, input.content);
-  res.json(result);
+  const job = await enqueueNoteIngestion(input);
+  res.status(202).json({
+    jobId: job.id,
+    status: job.status,
+    acceptedAt: job.createdAt
+  });
+});
+
+app.get("/v1/jobs/:jobId", requireCollectorKey, async (req, res) => {
+  const jobId = z.string().parse(req.params.jobId);
+  const job = await getIngestionJobById(jobId);
+
+  if (!job) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+
+  res.json(job);
 });
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

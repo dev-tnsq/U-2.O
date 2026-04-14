@@ -13,6 +13,7 @@ model User {
   name         String?
   cards        Card[]
   notes        Note[]
+  ingestionJobs IngestionJob[]
   graphPresets Json?
   createdAt    DateTime  @default(now())
 }
@@ -60,4 +61,36 @@ model Note {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+}
+
+enum IngestionJobType {
+  URL
+  NOTE
+}
+
+enum IngestionJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model IngestionJob {
+  id           String             @id @default(cuid())
+  userId       String
+  type         IngestionJobType
+  status       IngestionJobStatus @default(PENDING)
+  payload      Json
+  attempts     Int                @default(0)
+  errorMessage String?
+  resultCardId String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  startedAt    DateTime?
+  finishedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
 }

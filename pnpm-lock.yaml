@@ -40,6 +40,25 @@ importers:
         specifier: ^5.6.2
         version: 5.9.3
 
+  apps/ingestion-worker:
+    dependencies:
+      '@u/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@u/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@u/ingestion':
+        specifier: workspace:*
+        version: link:../../packages/ingestion
+    devDependencies:
+      tsx:
+        specifier: ^4.19.1
+        version: 4.21.0
+      typescript:
+        specifier: ^5.6.2
+        version: 5.9.3
+
   apps/mcp-server:
     dependencies:
       '@modelcontextprotocol/sdk':
@@ -98,6 +117,9 @@ importers:
 
   packages/ingestion:
     dependencies:
+      '@prisma/client':
+        specifier: ^5.20.0
+        version: 5.22.0(prisma@5.22.0)
       '@u/core':
         specifier: workspace:*
         version: link:../core

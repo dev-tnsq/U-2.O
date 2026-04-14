@@ -11,10 +11,15 @@ Core idea:
 
 1. `@u/collector-api`
 - Receives user-captured data from device surfaces.
-- Runs ingestion pipeline (fetch/parse/summarize/embed/store).
+- Enqueues ingestion jobs for async processing.
 - Writes into Postgres + pgvector.
 
-2. `@u/mcp-server`
+2. `@u/ingestion-worker`
+- Claims pending jobs from the database queue.
+- Processes ingestion pipeline (fetch/parse/summarize/embed/store).
+- Handles retries and terminal failure status.
+
+3. `@u/mcp-server`
 - Exposes read/context tools over MCP Streamable HTTP.
 - Returns semantic + graph context to any compatible AI client.
 - Does not own primary ingestion.
@@ -25,6 +30,7 @@ Collector API endpoints:
 - `POST /v1/users`
 - `POST /v1/collect/url`
 - `POST /v1/collect/note`
+- `GET /v1/jobs/:jobId`
 
 MCP tools:
 - `u_search_cards`
@@ -51,8 +57,10 @@ MCP tools:
 
 1. Extension/mobile app captures user data.
 2. Client sends payload to Collector API with `x-u-api-key`.
-3. Collector pipeline stores cards + embeddings.
-4. Any AI client connects to U MCP and requests context.
+3. Collector responds with `jobId` and accepted status.
+4. Ingestion worker processes the job and writes cards + embeddings.
+5. Client checks `/v1/jobs/:jobId` for completion.
+6. Any AI client connects to U MCP and requests context.
 
 ## MCP endpoint
 

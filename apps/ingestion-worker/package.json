@@ -1,25 +1,23 @@
 {
-  "name": "@u/ingestion",
+  "name": "@u/ingestion-worker",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
+    "dev": "tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "echo 'No lint configured for @u/ingestion'"
+    "lint": "echo 'No lint configured for @u/ingestion-worker'"
   },
   "dependencies": {
-    "@prisma/client": "^5.20.0",
     "@u/core": "workspace:*",
     "@u/db": "workspace:*",
-    "jsdom": "^25.0.1",
-    "openai": "^4.68.4",
-    "zod": "^3.23.8"
+    "@u/ingestion": "workspace:*"
   },
   "devDependencies": {
-    "@types/jsdom": "^21.1.7",
+    "tsx": "^4.19.1",
     "typescript": "^5.6.2"
   }
 }
