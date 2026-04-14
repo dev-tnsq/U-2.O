@@ -28,9 +28,14 @@ Core idea:
 
 Collector API endpoints:
 - `POST /v1/users`
+- `POST /v1/device-keys`
 - `POST /v1/collect/url`
 - `POST /v1/collect/note`
 - `GET /v1/jobs/:jobId`
+
+Collector auth:
+- Admin key: `x-u-api-key`
+- Device key (preferred for capture clients): `x-u-device-key`
 
 MCP tools:
 - `u_search_cards`

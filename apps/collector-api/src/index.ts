@@ -1,6 +1,6 @@
 import express, { type Request, type Response, type NextFunction } from "express";
 import { z } from "zod";
-import { getEnv } from "@u/core";
+import { generateOpaqueToken, getEnv, sha256Hex } from "@u/core";
 import { ensureVectorExtension, ensureVectorIndex, prisma } from "@u/db";
 import { enqueueNoteIngestion, enqueueUrlIngestion, getIngestionJobById } from "@u/ingestion";
 
@@ -9,18 +9,42 @@ const app = express();
 
 app.use(express.json({ limit: "2mb" }));
 
-function requireCollectorKey(req: Request, res: Response, next: NextFunction) {
+async function requireCollectorKey(req: Request, res: Response, next: NextFunction) {
   const provided = req.header("x-u-api-key");
-  if (!provided || provided !== env.U_COLLECTOR_API_KEY) {
-    res.status(401).json({ error: "unauthorized" });
+  if (provided && provided === env.U_COLLECTOR_API_KEY) {
+    next();
     return;
   }
+
+  const deviceKey = req.header("x-u-device-key");
+  if (!deviceKey) {
+    res.status(401).json({ error: "unauthorized", message: "missing collector key" });
+    return;
+  }
+
+  const keyHash = sha256Hex(deviceKey);
+  const key = await prisma.apiKey.findUnique({ where: { keyHash } });
+  if (!key || !key.isActive) {
+    res.status(401).json({ error: "unauthorized", message: "invalid device key" });
+    return;
+  }
+
+  await prisma.apiKey.update({
+    where: { id: key.id },
+    data: { lastUsedAt: new Date() }
+  });
+
   next();
 }
 
 const createUserSchema = z.object({
   email: z.string().email(),
   name: z.string().optional()
+});
+
+const issueDeviceKeySchema = z.object({
+  userId: z.string(),
+  label: z.string().min(3).max(80)
 });
 
 const ingestUrlSchema = z.object({
@@ -54,6 +78,31 @@ app.post("/v1/users", requireCollectorKey, async (req, res) => {
   });
 
   res.json({ userId: user.id, email: user.email, name: user.name });
+});
+
+app.post("/v1/device-keys", requireCollectorKey, async (req, res) => {
+  const input = issueDeviceKeySchema.parse(req.body);
+  const token = generateOpaqueToken("uk");
+  const keyHash = sha256Hex(token);
+
+  const key = await prisma.apiKey.create({
+    data: {
+      userId: input.userId,
+      label: input.label,
+      keyHash
+    },
+    select: {
+      id: true,
+      label: true,
+      createdAt: true,
+      userId: true
+    }
+  });
+
+  res.status(201).json({
+    ...key,
+    token
+  });
 });
 
 app.post("/v1/collect/url", requireCollectorKey, async (req, res) => {

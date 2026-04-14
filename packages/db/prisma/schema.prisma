@@ -14,6 +14,7 @@ model User {
   cards        Card[]
   notes        Note[]
   ingestionJobs IngestionJob[]
+  apiKeys      ApiKey[]
   graphPresets Json?
   createdAt    DateTime  @default(now())
 }
@@ -93,4 +94,18 @@ model IngestionJob {
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
+}
+
+model ApiKey {
+  id         String   @id @default(cuid())
+  userId     String
+  label      String
+  keyHash    String   @unique
+  isActive   Boolean  @default(true)
+  lastUsedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
 }
