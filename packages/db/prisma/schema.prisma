@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String?   @unique
+  name         String?
+  cards        Card[]
+  notes        Note[]
+  graphPresets Json?
+  createdAt    DateTime  @default(now())
+}
+
+model Card {
+  id              String       @id @default(cuid())
+  title           String
+  sourceType      String
+  originalUrl     String?
+  originalContent String?
+  summary         String
+  keyPoints       Json?
+  tags            String[]
+  embeddings      Unsupported("vector(1536)")?
+  notebook        Json
+  connectionsMeta Json?
+  createdAt       DateTime     @default(now())
+  lastReviewedAt  DateTime?
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outgoing        Connection[] @relation("FromConnections")
+  incoming        Connection[] @relation("ToConnections")
+
+  @@index([tags])
+}
+
+model Connection {
+  id        String   @id @default(cuid())
+  fromId    String
+  toId      String
+  reason    String
+  weight    Float    @default(1.0)
+  from      Card     @relation("FromConnections", fields: [fromId], references: [id], onDelete: Cascade)
+  to        Card     @relation("ToConnections", fields: [toId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([fromId])
+  @@index([toId])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  title     String
+  blocks    Json
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}

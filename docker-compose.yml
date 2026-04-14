@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: u-postgres
+    environment:
+      POSTGRES_DB: u
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - u-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  u-postgres-data:
